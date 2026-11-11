@@ -95,7 +95,7 @@ g++ -std=c++11 -Itest/fakes -Iinclude test/partial_display_test.cpp -o /tmp/cyd-
 /tmp/cyd-partial-display-test
 ```
 
-Edytuj `include/config.h` (lokalny plik ignorowany przez Git).
+Edytuj `include/config.h`.
 Jesli go brakuje, skopiuj `include/config.example.h` jako `include/config.h`.
 
 1. Wpisz nazwe sieci Wi-Fi 2,4 GHz i haslo.
@@ -113,65 +113,6 @@ Dla `water_heater` dobierz usluge i tryb do konkretnej integracji
 w Narzedziach deweloperskich HA, zakladka Akcje. Stan inny niz `off`
 oznacza wlaczony tryb urzadzenia; nie jest pomiarem poboru mocy.
 
-Haslo i token sa zapisywane w firmware; nie udostepniaj pliku config.h
-ani gotowego firmware z prawdziwymi danymi. Komunikacja wykorzystuje HTTP
-w sieci lokalnej; ta wersja nie obsluguje HTTPS.
-
-## Budowanie i wgrywanie
-
-W PlatformIO wybierz Build, a po podlaczeniu plytki przez USB — Upload.
-Z terminala:
-
-```sh
-pio run
-pio run --target upload
-pio device monitor --baud 115200
-```
-
-Bez `config.h` projekt rowniez sie kompiluje i pokazuje panel, ale nie laczy
-sie z Wi-Fi. Program nie wysyla polecen uruchomienia urzadzen przy starcie.
-Odczytuje stany z HA co okolo 5 sekund, automatycznie ponawia laczenie Wi-Fi
-i blokuje przyciski przy braku aktualnego stanu. Jedno dotkniecie przycisku zasilania
-wysyla jedno polecenie; kolejne wymaga puszczenia ekranu.
-Po poleceniu stan jest odczytywany ponownie z HA. Opozniona zmiana
-urzadzenia pojawi sie podczas kolejnego odswiezenia.
-
-Zapytania HTTP sa synchroniczne. Przy niedostepnym serwerze pojedyncze
-zapytanie moze zatrzymac reakcje ekranu na kilka sekund.
-
-## Publikacja na GitHub
-
-Prywatne haslo, token, adres HA i encje przechowuj w `include/config.h`.
-Git ignoruje ten plik oraz katalog `.pio/`, firmware `.bin`/`.elf`, pliki
-edytora i lokalne katalogi narzedzi. `include/config.example.h` oraz ten
-README zawieraja neutralne przyklady.
-
-Na GitHub utworz puste repozytorium (bez generowania README i .gitignore).
-Nastepnie w katalogu projektu wykonaj:
-
-```sh
-git init -b main
-git add .gitignore README.md platformio.ini src include lib test
-git check-ignore include/config.h
-git diff --cached --name-only
-git diff --cached
-```
-
-`git check-ignore` powinien wypisac `include/config.h`. Ten plik nie moze
-wystepowac na liscie `git diff --cached --name-only`. Przejrzyj zmiany, a potem:
-
-```sh
-git commit -m "Initial commit"
-git remote add origin https://github.com/TWOJ_LOGIN/CYD_HA.git
-git push -u origin main
-```
-
-Jesli plik konfiguracyjny byl juz sledzony, samo `.gitignore` nie usunie go
-z indeksu ani historii. Przed nowym commitem usun go z indeksu przez
-`git rm --cached include/config.h` (lokalny plik pozostanie).
-Jesli sekret byl juz opublikowany, najpierw uniewaznij/zmien token lub haslo;
-usuniecie pliku w kolejnym commicie nie usuwa sekretu ze starej historii.
-Nie dolaczaj do Releases firmware zbudowanego z prywatna konfiguracja.
 
 ## Ekran i dotyk
 
