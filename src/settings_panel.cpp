@@ -1,50 +1,48 @@
 #include "settings_panel.h"
 #include "panel_ui.h"
+#include "ui_views.h"
 
 namespace {
 using namespace PanelUI;
-bool inside(int x, int y, int left, int top, int width, int height) {
-  return x >= left && x < left + width && y >= top && y < top + height;
-}
 String number(float value) {
   if (!isfinite(value)) return "--";
   return String(value, fabsf(value - roundf(value)) < 0.001f ? 0 : 1);
 }
 String label(const String &value) {
-  if (value == "off") return "Wylaczone";
+  if (value == "off") return "Wyłączone";
   if (value == "heat") return "Grzanie";
-  if (value == "cool") return "Chlodzenie";
+  if (value == "cool") return "Chłodzenie";
   if (value == "dry") return "Osuszanie";
   if (value == "fan_only") return "Wentylator";
   if (value == "auto") return "Auto";
   if (value == "low") return "Niski";
-  if (value == "medium low") return "Srednio niski";
-  if (value == "medium") return "Sredni";
-  if (value == "medium high") return "Srednio wysoki";
+  if (value == "medium low") return "Średnio niski";
+  if (value == "medium") return "Średni";
+  if (value == "medium high") return "Średnio wysoki";
   if (value == "high") return "Wysoki";
   if (value == "none") return "Normalny";
   if (value == "eco") return "Eco";
   if (value == "away") return "Poza domem";
   if (value == "boost") return "Turbo";
   if (value == "sleep") return "Sen";
-  if (value == "default") return "Domyslny";
-  if (value == "full_swing") return "Pelny ruch";
-  if (value == "fixed_upper") return "Gora";
-  if (value == "fixed_upper_middle") return "Gora / srodek";
-  if (value == "fixed_middle") return "Srodek";
-  if (value == "fixed_lower_middle") return "Dol / srodek";
-  if (value == "fixed_lower") return "Dol";
-  if (value == "swing_upper") return "Ruch: gora";
-  if (value == "swing_upper_middle") return "Ruch: gora-srodek";
-  if (value == "swing_middle") return "Ruch: srodek";
-  if (value == "swing_lower_middle") return "Ruch: dol-srodek";
-  if (value == "swing_lower") return "Ruch: dol";
+  if (value == "default") return "Domyślny";
+  if (value == "full_swing") return "Pełny ruch";
+  if (value == "fixed_upper") return "Góra";
+  if (value == "fixed_upper_middle") return "Góra / środek";
+  if (value == "fixed_middle") return "Środek";
+  if (value == "fixed_lower_middle") return "Dół / środek";
+  if (value == "fixed_lower") return "Dół";
+  if (value == "swing_upper") return "Ruch: góra";
+  if (value == "swing_upper_middle") return "Ruch: góra-środek";
+  if (value == "swing_middle") return "Ruch: środek";
+  if (value == "swing_lower_middle") return "Ruch: dół-środek";
+  if (value == "swing_lower") return "Ruch: dół";
   if (value == "left") return "Lewo";
-  if (value == "left_center") return "Lewo / srodek";
-  if (value == "center") return "Srodek";
-  if (value == "right_center") return "Prawo / srodek";
+  if (value == "left_center") return "Lewo / środek";
+  if (value == "center") return "Środek";
+  if (value == "right_center") return "Prawo / środek";
   if (value == "right") return "Prawo";
-  if (value == "MANUAL") return "Reczny";
+  if (value == "MANUAL") return "Ręczny";
   if (value == "PROGRAM") return "Program";
   String result = value;
   result.replace("_", " ");
@@ -52,21 +50,13 @@ String label(const String &value) {
 }
 const char *fieldName(SettingField field) {
   switch (field) {
-    case SettingField::Mode: return "TRYB PRACY";
-    case SettingField::Fan: return "WENTYLATOR";
-    case SettingField::Preset: return "PRESET";
-    case SettingField::Swing: return "NAWIEW PIONOWY";
-    case SettingField::Horizontal: return "NAWIEW POZIOMY";
-    default: return "TRYB BOJLERA";
+    case SettingField::Mode: return "Tryb pracy";
+    case SettingField::Fan: return "Wentylator";
+    case SettingField::Preset: return "Profil";
+    case SettingField::Swing: return "Nawiew pionowy";
+    case SettingField::Horizontal: return "Nawiew poziomy";
+    default: return "Tryb bojlera";
   }
-}
-void button(TFT_eSPI &c, int x, int y, int w, int h, const String &text,
-            bool enabled, uint16_t accent = BLUE) {
-  c.fillRoundRect(x, y, w, h, 7, enabled ? BUTTON : SURFACE);
-  c.drawRoundRect(x, y, w, h, 7, enabled ? accent : BORDER);
-  c.setTextColor(enabled ? TEXT : MUTED, enabled ? BUTTON : SURFACE);
-  const int font = c.textWidth(text, 2) <= w - 8 ? 2 : 1;
-  c.drawCentreString(text, x + w / 2, y + (h - c.fontHeight(font)) / 2, font);
 }
 float numeric(JsonVariantConst value) {
   return value.is<float>() ? value.as<float>() : NAN;
@@ -142,95 +132,71 @@ void SettingsPanel::draw(TFT_eSPI &c, bool connected, const String &notice) {
   SettingsState &s = state();
   if (!dirty) draft = s.target;
   const bool valid = s.fresh(connected), tempEnabled = s.temperatureAvailable(connected);
-  const uint16_t accent = isBoiler() ? TEAL : (device == 0 ? AMBER : BLUE);
-  c.fillRect(0, 0, WIDTH, HEIGHT, BG);
-  c.setTextDatum(TL_DATUM);
-  button(c, 8, 6, 58, 30, "< Wroc", true, accent);
-  c.setTextColor(TEXT, BG);
-  c.drawString(page == SettingsPage::Options ? fieldName(selectedField) :
-               (isBoiler() ? "Bojler" : (device == 0 ? "Grzejnik" : "Klimatyzacja")), 77, 13, 2);
   if (page == SettingsPage::Options) {
-    const auto &options = s.options[static_cast<uint8_t>(selectedField)];
-    for (uint8_t row = 0; row < 4; ++row) {
+    const auto &list = s.options[static_cast<uint8_t>(selectedField)];
+    const uint8_t pages = list.count ? (list.count + 3) / 4 : 1;
+    if (optionPage >= pages) optionPage = pages - 1;
+    String names[4];
+    Views::Option rows[4];
+    uint8_t count = 0;
+    for (uint8_t row = 0; row < 4 && optionPage * 4 + row < list.count; ++row) {
       const uint8_t index = optionPage * 4 + row;
-      if (index >= options.count) break;
-      button(c, 8, 42 + row * 39, 304, 34,
-             (options.current == options.values[index] ? "* " : "") + label(options.values[index]),
-             s.fieldAvailable(selectedField, connected), accent);
+      names[row] = label(list.values[index]);
+      rows[row] = {names[row].c_str(), list.current == list.values[index]};
+      ++count;
     }
-    button(c, 8, 201, 84, 22, "< Poprz.", optionPage > 0, accent);
-    button(c, 228, 201, 84, 22, "Nast. >", (optionPage + 1) * 4 < options.count, accent);
-    c.setTextColor(MUTED, BG);
-    c.drawCentreString(String(optionPage + 1) + " / " + ((options.count + 3) / 4), 160, 205, 1);
-  } else {
-    button(c, 239, 6, 73, 30, "Zasilanie", valid, accent);
-    c.setTextColor(MUTED, BG);
-    c.drawString("Aktualna: " + (valid ? number(s.current) : String("--")), 12, 42, 2);
-    c.drawRightString(dirty ? "Niezapisane" : "Stan z HA", 308, 45, 1);
-    button(c, 8, 64, 46, 43, "-", tempEnabled, accent);
-    button(c, 181, 64, 46, 43, "+", tempEnabled, accent);
-    c.setTextColor(tempEnabled ? TEXT : MUTED, BG);
-    c.drawCentreString(tempEnabled ? number(draft) : String("--"), 118, 63, 4);
-    c.setTextColor(MUTED, BG);
-    c.drawCentreString("TEMP. ZADANA", 118, 94, 1);
-    button(c, 239, 64, 73, 43, "Zapisz", tempEnabled && dirty &&
-           ControlRules::canSave(draft, s.minimum, s.maximum, s.step), accent);
-    if (isBoiler()) {
-      c.setTextColor(MUTED, BG);
-      c.drawString("Zakres z HA: " + number(s.minimum) + " - " + number(s.maximum), 12, 117, 2);
-      c.drawString("Krok: " + number(s.step), 12, 139, 2);
-      const auto &list = s.options[5];
-      button(c, 8, 170, 304, 42, "Tryb: " + label(list.current),
-             s.fieldAvailable(SettingField::BoilerMode, connected), accent);
-    } else {
-      uint8_t fields[5];
-      const uint8_t count = visibleFields(fields);
-      for (uint8_t slot = 0; slot < count; ++slot) {
-        const uint8_t i = fields[slot];
-        const int x = 8 + (slot % 2) * 156, y = 116 + (slot / 2) * 34;
-        const int width = count == 1 ? 304 : 148;
-        const bool enabled = s.fieldAvailable(static_cast<SettingField>(i), connected);
-        c.fillRoundRect(x, y, width, 30, 6, SURFACE);
-        c.drawRoundRect(x, y, width, 30, 6, enabled ? BORDER : SURFACE);
-        c.setTextColor(MUTED, SURFACE);
-        c.drawString(fieldName(static_cast<SettingField>(i)), x + 6, y + 3, 1);
-        c.setTextColor(enabled ? TEXT : MUTED, SURFACE);
-        const String value = enabled ? label(s.options[i].current) : String("Niedostepne");
-        c.drawString(value.substring(0, 22) + (enabled ? " >" : ""), x + 6, y + 16, 1);
-      }
-      c.setTextColor(MUTED, BG);
-      if (device == 0) {
-        c.drawString("Zakres: " + number(s.minimum) + " - " + number(s.maximum), 12, 160, 2);
-        c.drawString("Krok: " + number(s.step), 12, 184, 2);
-      } else c.drawCentreString(valid ? "Odczyt z HA" : "Brak danych HA", 238, 193, 1);
-    }
+    Views::options(c, device, fieldName(selectedField), rows, count, optionPage, pages,
+                   s.fieldAvailable(selectedField, connected), notice.c_str());
+    return;
   }
-  c.setTextColor(MUTED, BG);
+  const String target = tempEnabled ? number(draft) + "°" : String("--");
+  const String current = valid && isfinite(s.current) ?
+      String(isBoiler() ? "Woda: " : "Teraz: ") + number(s.current) + "°" : "Brak odczytu";
+  const String range = "Zakres: " + number(s.minimum) + " - " + number(s.maximum) + "°";
+  const String step = "Krok regulacji: " + number(s.step) + "°";
+  Views::Detail view = {};
+  view.device = device;
+  view.available = valid;
+  view.temperatureAvailable = tempEnabled;
+  view.dirty = dirty;
+  view.saveAvailable = tempEnabled && dirty && ControlRules::canSave(draft, s.minimum, s.maximum, s.step);
+  view.target = target.c_str();
+  view.current = current.c_str();
+  view.range = range.c_str();
+  view.step = step.c_str();
+  uint8_t fields[5];
+  view.count = isBoiler() ? 1 : visibleFields(fields);
+  if (isBoiler()) fields[0] = 5;
+  String values[5];
+  for (uint8_t slot = 0; slot < view.count; ++slot) {
+    const uint8_t field = fields[slot];
+    const bool enabled = s.fieldAvailable(static_cast<SettingField>(field), connected);
+    values[slot] = enabled ? label(s.options[field].current) : String("Niedostępne");
+    view.fields[slot] = {fieldName(static_cast<SettingField>(field)), values[slot].c_str(), enabled};
+  }
   String footer = notice;
-  if (!footer.length() && dirty && tempEnabled &&
-      !ControlRules::canSave(draft, s.minimum, s.maximum, s.step))
-    footer = "Nastawa poza aktualnym zakresem lub krokiem HA";
-  if (!footer.length()) footer = !valid ? "Brak aktualnych danych. Sterowanie zablokowane." :
-      (page == SettingsPage::Options ? "Dotknij opcji, aby ja zastosowac" : "Zmiana temperatury wymaga przycisku Zapisz");
-  c.drawString(footer.substring(0, 49), 12, 229, 1);
+  if (!footer.length() && dirty && tempEnabled && !view.saveAvailable)
+    footer = "Nastawa poza aktualnym zakresem temperatury";
+  Views::detail(c, view, footer.c_str());
 }
+
 SettingsAction SettingsPanel::tap(int x, int y, bool connected) {
   SettingsAction action;
   action.device = device;
   SettingsState &s = state();
-  if (inside(x, y, 8, 6, 58, 30)) {
+  if (PanelUI::BACK.contains(x, y)) {
     if (page == SettingsPage::Options) page = detailsPage();
     else { page = SettingsPage::Home; action.type = SettingsActionType::BackHome; dirty = false; }
     return action;
   }
   if (page == SettingsPage::Options) {
     const auto &options = s.options[static_cast<uint8_t>(selectedField)];
-    if (inside(x, y, 8, 201, 84, 22) && optionPage) --optionPage;
-    else if (inside(x, y, 228, 201, 84, 22) && (optionPage + 1) * 4 < options.count) ++optionPage;
+    if (PanelUI::PREVIOUS.contains(x, y) && optionPage) --optionPage;
+    else if (PanelUI::NEXT.contains(x, y) && (optionPage + 1) * 4 < options.count) ++optionPage;
     else if (s.fieldAvailable(selectedField, connected)) {
       for (uint8_t row = 0; row < 4; ++row) {
         const uint8_t index = optionPage * 4 + row;
-        if (index < options.count && inside(x, y, 8, 42 + row * 39, 304, 34)) {
+        if (index < options.count && PanelUI::optionRow(row).contains(x, y)) {
           action.type = SettingsActionType::SelectOption;
           action.field = selectedField;
           action.option = options.values[index];
@@ -239,16 +205,16 @@ SettingsAction SettingsPanel::tap(int x, int y, bool connected) {
     }
     return action;
   }
-  if (inside(x, y, 239, 6, 73, 30) && s.fresh(connected)) {
+  if (PanelUI::POWER.contains(x, y) && s.fresh(connected)) {
     action.type = SettingsActionType::Toggle;
     return action;
   }
   if (s.temperatureAvailable(connected)) {
     if (!dirty) draft = s.target;
-    if (inside(x, y, 8, 64, 46, 43) || inside(x, y, 181, 64, 46, 43)) {
-      draft = ControlRules::adjust(draft, x < 54 ? -1 : 1, s.minimum, s.maximum, s.step);
+    if (PanelUI::MINUS.contains(x, y) || PanelUI::PLUS.contains(x, y)) {
+      draft = ControlRules::adjust(draft, PanelUI::MINUS.contains(x, y) ? -1 : 1, s.minimum, s.maximum, s.step);
       dirty = fabsf(draft - s.target) > 0.001f;
-    } else if (inside(x, y, 239, 64, 73, 43) && dirty &&
+    } else if (PanelUI::SAVE.contains(x, y) && dirty &&
                ControlRules::canSave(draft, s.minimum, s.maximum, s.step)) {
       action.type = SettingsActionType::SaveTemperature;
       action.temperature = draft;
@@ -259,8 +225,7 @@ SettingsAction SettingsPanel::tap(int x, int y, bool connected) {
   if (isBoiler()) fields[0] = 5;
   for (uint8_t slot = 0; slot < count; ++slot) {
     const uint8_t i = fields[slot];
-    const bool hit = isBoiler() ? inside(x, y, 8, 170, 304, 42) :
-        inside(x, y, 8 + (slot % 2) * 156, 116 + (slot / 2) * 34, count == 1 ? 304 : 148, 30);
+    const bool hit = PanelUI::fieldRect(slot, count).contains(x, y);
     if (hit && s.fieldAvailable(static_cast<SettingField>(i), connected)) {
       selectedField = static_cast<SettingField>(i);
       page = SettingsPage::Options;

@@ -9,6 +9,7 @@
 #include "panel_ui.h"
 #include "settings_panel.h"
 #include "partial_display.h"
+#include "ui_views.h"
 
 #if __has_include("config.h")
 #include "config.h"
@@ -57,77 +58,39 @@ bool fresh(uint8_t i) {
 
 const char *climateMode(const String &value) {
   if (value == "heat") return "Grzanie";
-  if (value == "cool") return "Chlodzenie";
+  if (value == "cool") return "Chłodzenie";
   if (value == "dry") return "Osuszanie";
   if (value == "fan_only") return "Wentylator";
   if (value == "auto" || value == "heat_cool") return "Auto";
-  return "Wlaczone";
+  return "Włączone";
 }
 
 void drawScene(TFT_eSPI &canvas) {
+  const bool connected = WiFi.status() == WL_CONNECTED;
   if (settings.page != SettingsPage::Home) {
-    settings.draw(canvas, WiFi.status() == WL_CONNECTED, notice);
+    settings.draw(canvas, connected, notice);
     return;
   }
-
-  using namespace PanelUI;
-  canvas.fillRect(0, 0, WIDTH, HEIGHT, BG);
-  canvas.setTextDatum(TL_DATUM);
-  canvas.setTextColor(TEXT, BG);
-  canvas.drawString("Moj dom", 12, 8, 4);
-  canvas.setTextColor(MUTED, BG);
-  canvas.drawString("KOMFORT POD KONTROLA", 13, 39, 1);
-
-  const bool wifi = WiFi.status() == WL_CONNECTED;
-  canvas.fillRoundRect(226, 14, 82, 25, 12, SURFACE);
-  canvas.fillCircle(237, 26, 3, wifi ? TEAL : AMBER);
-  canvas.setTextColor(wifi ? TEXT : MUTED, SURFACE);
-  canvas.drawString(wifi ? "Wi-Fi OK" : "Offline", 246, 18, 2);
-
+  String current[3], target[3];
+  Views::DeviceTile cards[3];
   for (uint8_t i = 0; i < 3; ++i) {
-    const int x = cardX(i);
     const bool valid = fresh(i), active = valid && states[i].enabled;
-    const bool assigned = strlen(Config::DEVICES[i].entity) != 0;
-    const uint16_t accent = ACCENTS[i];
-    const uint16_t surface = active ? ACTIVE_BG[i] : SURFACE;
-    canvas.fillRoundRect(x, CARD_Y + 2, CARD_W, CARD_H, 12, SHADOW);
-    canvas.fillRoundRect(x, CARD_Y, CARD_W, CARD_H, 12, surface);
-    canvas.drawRoundRect(x, CARD_Y, CARD_W, CARD_H, 12, active ? accent : BORDER);
-    canvas.fillRoundRect(x + 29, CARD_Y, 38, 3, 1, accent);
-    canvas.fillCircle(x + 48, 94, 19, ICON_BG[i]);
-    icon(canvas, i, x + 48, 94, accent);
-    canvas.setTextColor(TEXT, surface);
-    const int font = canvas.textWidth(Config::DEVICES[i].label, 2) <= CARD_W - 8 ? 2 : 1;
-    canvas.drawCentreString(Config::DEVICES[i].label, x + CARD_W / 2, 121, font);
-    canvas.setTextColor(active ? accent : MUTED, surface);
-    const char *status = !assigned ? "Brak encji" : (!valid ? "Brak danych" :
-                         (active ? "Wlaczone" : "Wylaczone"));
+    const auto &snapshot = settings.forDevice(i);
+    const bool temperatures = snapshot.fresh(connected);
+    current[i] = temperatures && isfinite(snapshot.current) ?
+        String(snapshot.current, snapshot.current == truncf(snapshot.current) ? 0 : 1) + "°" : "--";
+    if (temperatures && isfinite(snapshot.target))
+      target[i] = "Cel " + String(snapshot.target, snapshot.target == truncf(snapshot.target) ? 0 : 1) + "°";
+    else if (i == 2 && boilerTarget.fresh()) target[i] = "Cel " + boilerTarget.value + "°";
+    else target[i] = "Brak nastawy";
+    const char *status = !strlen(Config::DEVICES[i].entity) ? "Brak konfiguracji" :
+        (!valid ? "Niedostępne" : (active ? "Włączone" : (i == 1 ? "Wyłączona" : "Wyłączony")));
     if (i < 2 && active) status = climateMode(states[i].value);
-    if (i == 2 && active && boilerHeating.fresh())
-      status = boilerHeating.value == "on" ? "Grzeje" : "Nie grzeje";
-    canvas.drawCentreString(status, x + CARD_W / 2, 144, 2);
-    String detail;
-    if (i < 2 && valid) detail = states[i].temperature;
-    if (i == 2 && boilerTarget.fresh()) {
-      String unit = boilerTarget.unit;
-      unit.replace("\xC2\xB0", ""); // Font ekranowy nie zawiera symbolu stopnia.
-      detail = String("Zadana ") + boilerTarget.value + (unit.length() ? " " + unit : "");
-    }
-    canvas.setTextColor(MUTED, surface);
-    canvas.drawCentreString(detail.substring(0, 15), x + CARD_W / 2, 162, 1);
-    const uint16_t button = valid ? (active ? accent : BUTTON) : surface;
-    canvas.fillRoundRect(x + 8, 172, CARD_W - 16, 28, 7, button);
-    if (!valid) canvas.drawRoundRect(x + 8, 172, CARD_W - 16, 28, 7, BORDER);
-    canvas.setTextColor(valid ? (active ? BG : TEXT) : MUTED, button);
-    if (valid) {
-      power(canvas, x + 21, 186, active ? BG : TEXT, button);
-      canvas.drawCentreString(active ? "WYLACZ" : "WLACZ", x + 54, 178, 1);
-    } else canvas.drawCentreString("--", x + CARD_W / 2, 180, 1);
+    if (i == 2 && active && boilerHeating.fresh()) status = boilerHeating.value == "on" ? "Grzeje" : "Nie grzeje";
+    cards[i] = {Config::DEVICES[i].label, status, current[i].c_str(), target[i].c_str(), active, valid};
   }
-  canvas.setTextColor(MUTED, BG);
-  String footer = notice;
-  if (!footer.length()) footer = configured ? "Kafelek: ustawienia / przycisk: zasilanie" : "Uzupelnij include/config.h";
-  canvas.drawString(footer.substring(0, 49), 12, 224, 1);
+  const String footer = !configured && !notice.length() ? "Skonfiguruj połączenie z Home Assistant" : notice;
+  Views::home(canvas, cards, connected, footer.c_str());
 }
 
 void draw() {
@@ -262,7 +225,7 @@ void readBoilerSettings() {
 
 void toggle(uint8_t i) {
   if (!fresh(i)) {
-    message("Brak aktualnego stanu urzadzenia");
+    message("Brak aktualnego odczytu urządzenia");
     return;
   }
   const auto &d = Config::DEVICES[i];
@@ -275,7 +238,7 @@ void toggle(uint8_t i) {
   data["entity_id"] = d.entity;
   String body, response;
   serializeJson(data, body);
-  message("Wysylanie polecenia...");
+  message("Wysyłanie polecenia…");
   const int code = request(String("/api/services/") + d.domain + "/" +
                            (turnOn ? d.onService : d.offService), response, &body);
   // Stan potwierdza HA; brak automatycznego ponawiania polecen.
@@ -284,7 +247,7 @@ void toggle(uint8_t i) {
     apiError(code);
   }
   else {
-    message("Wyslano; oczekiwanie na stan HA");
+    message("Wysłano. Oczekiwanie na urządzenie…");
     readState(i);
   }
   polling = true;
@@ -308,7 +271,7 @@ void applySetting(const SettingsAction &action) {
   if (action.type == SettingsActionType::SaveTemperature) {
     if (!state.temperatureAvailable(connected) ||
         !ControlRules::canSave(action.temperature, state.minimum, state.maximum, state.step)) {
-      message("Nieaktualne dane lub temperatura poza zakresem");
+      message("Sprawdź połączenie i zakres temperatury");
       return;
     }
     service = "set_temperature";
@@ -316,7 +279,7 @@ void applySetting(const SettingsAction &action) {
   } else {
     const uint8_t index = static_cast<uint8_t>(action.field);
     if (!state.fieldAvailable(action.field, connected) || !state.options[index].contains(action.option)) {
-      message("Opcja niedostepna lub nieaktualna");
+      message("Ta opcja jest teraz niedostępna");
       return;
     }
     const char *services[] = {"set_hvac_mode", "set_fan_mode", "set_preset_mode",
@@ -328,7 +291,7 @@ void applySetting(const SettingsAction &action) {
   }
   String body, response;
   serializeJson(data, body);
-  message("Wysylanie ustawienia...");
+  message("Zapisywanie ustawienia…");
   const int code = request("/api/services/" + domain + "/" + service, response, &body);
   // Nie ponawiaj automatycznie polecenia, nawet przy niepewnym wyniku HTTP.
   if (code != 200) {
@@ -337,7 +300,7 @@ void applySetting(const SettingsAction &action) {
   }
   else {
     settings.saved(action.type == SettingsActionType::SaveTemperature);
-    message("Wyslano. Stan potwierdza odczyt z HA.");
+    message("Wysłano. Oczekiwanie na potwierdzenie…");
   }
   if (boiler) readBoilerSettings();
   else readState(action.device);
@@ -354,7 +317,7 @@ void handleTap(int x, int y) {
   for (uint8_t i = 0; i < 3; ++i) {
     if (!PanelUI::hit(i, x, y)) continue;
     // Ustawienia i zasilanie maja oddzielne obszary dotyku.
-    if (y >= 172 && y < 200 && x >= PanelUI::cardX(i) + 8 && x < PanelUI::cardX(i) + 88) toggle(i);
+    if (PanelUI::homePower(i).contains(x, y)) toggle(i);
     else {
       settings.open(i);
       polling = true;

@@ -2,10 +2,10 @@
 
 // Skopiuj jako include/config.h. Nie publikuj hasla ani tokena.
 namespace Config {
-constexpr char WIFI_SSID[] = "TWOJA_SIEC_WIFI";
-constexpr char WIFI_PASSWORD[] = "TWOJE_HASLO_WIFI";
-constexpr char HA_URL[] = "http://192.168.1.100:8123";
-constexpr char HA_TOKEN[] = "WKLEJ_TOKEN_DLUGOTERMINOWY";
+constexpr char WIFI_SSID[] = "WIFI_SSID";
+constexpr char WIFI_PASSWORD[] = "WIFI_PASSWORD";
+constexpr char HA_URL[] = "HA_URL";
+constexpr char HA_TOKEN[] = "HA_TOKEN";
 // Zakresy surowe po touch.setRotation(1); mozna odwrocic min/max.
 constexpr int TOUCH_X_MIN = 200, TOUCH_X_MAX = 3800;
 constexpr int TOUCH_Y_MIN = 200, TOUCH_Y_MAX = 3800;

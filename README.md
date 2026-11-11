@@ -2,6 +2,10 @@
 
 Dotykowy panel sterowania Home Assistant dla płytki **ESP32-2432S028R (CYD)** z ekranem 2,8″. Zapewnia dostęp do grzejnika, klimatyzacji i bojlera w poziomym interfejsie 320 × 240 px.
 
+![Panel główny i ekrany ustawień](docs/previews/overview.png)
+
+Jasny interfejs z czcionką Fira Sans, polskimi znakami i osobnymi kafelkami urządzeń. Podgląd przedstawia przykładowe dane.
+
 ## Funkcje
 
 | Urządzenie | Dostępne funkcje |
@@ -72,9 +76,9 @@ pio device monitor --baud 115200
 - **Dolny przycisk kafelka** włącza lub wyłącza urządzenie.
 - **− / +** zmienia temperaturę do zapisania. Przycisk **Zapisz** wysyła nową nastawę.
 - **Wybór opcji z listy** od razu stosuje tryb, preset lub ustawienie wentylatora i nawiewu.
-- **Wróć** zamyka listę lub wraca do ekranu głównego. Powrót do ekranu głównego porzuca niezapisaną temperaturę.
+- **Strzałka w lewym górnym rogu** zamyka listę lub wraca do ekranu głównego. Powrót do ekranu głównego porzuca niezapisaną temperaturę.
 
-Na kafelkach grzejnika i klimatyzacji temperatury są pokazane w kolejności **aktualna / zadana**. Na kafelku bojlera widoczna jest temperatura zadana, a temperatura aktualna znajduje się w szczegółach.
+Duża liczba na kafelku przedstawia **temperaturę aktualną**, a opis **Cel** poniżej wskazuje temperaturę zadaną. Szczegóły urządzenia zawierają regulację nastawy i dostępne opcje.
 
 Po wysłaniu polecenia panel ponownie odczytuje stan z Home Assistant. Aktualizacja może pojawić się z opóźnieniem zależnym od integracji urządzenia. Panel nie włącza urządzeń samodzielnie po uruchomieniu.
 
