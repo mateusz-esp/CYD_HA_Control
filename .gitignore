@@ -1,0 +1,16 @@
+# Lokalna konfiguracja, firmware i pliki narzedzi.
+.pio/
+include/config.h
+.vscode/
+.agents/
+.codex/
+.aws/
+.env
+.env.*
+*.bin
+*.elf
+*.map
+*.pem
+*.key
+*.p12
+__pycache__/
